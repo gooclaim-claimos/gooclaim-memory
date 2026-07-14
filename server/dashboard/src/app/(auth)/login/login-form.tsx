@@ -75,17 +75,17 @@ export default function LoginForm() {
               <Image
                 src={
                   resolvedTheme === "dark"
-                    ? "/images/logos/logo-light.png"
-                    : "/images/logos/logo-dark.png"
+                    ? "/images/gooclaim-icon.svg"
+                    : "/images/gooclaim-icon.svg"
                 }
-                alt="Mem0"
+                alt="Gooclaim Memory"
                 width={41}
                 height={41}
               />
             )}
           </div>
           <h1 className="text-2xl font-semibold text-onSurface-default-primary text-center mb-6 font-fustat">
-            Sign in to Mem0
+            Sign in to Gooclaim Memory
           </h1>
           <div className="flex flex-col gap-4 border p-8 border-memBorder-primary rounded-xl">
             {error && (
@@ -174,57 +174,19 @@ export default function LoginForm() {
 
       <div className="relative hidden h-screen flex-1 items-center justify-center overflow-hidden bg-gradient-to-b from-[#31275A] to-[#5C49A3] px-10 lg:flex">
         <div className="pointer-events-none absolute inset-0 bg-[url('/images/dither.svg')] bg-bottom bg-no-repeat bg-contain" />
-        <div className="relative z-10 flex w-full max-w-[564px] flex-col items-center gap-20 text-center text-white">
-          <div className="w-full space-y-5">
-            <p className="typo-h3 text-white">
-              &quot;Mem0 allowed us to unlock true personalized tutoring for
-              every student, and it took us just a weekend to integrate.&quot;
+        <div className="relative z-10 flex w-full max-w-[564px] flex-col items-center gap-10 text-center text-white">
+          <Image
+            src="/images/gooclaim-icon.svg"
+            alt="Gooclaim Memory"
+            width={96}
+            height={96}
+          />
+          <div className="w-full space-y-4">
+            <p className="typo-h3 text-white">Gooclaim Memory</p>
+            <p className="typo-body text-white/80">
+              Agent memory for Gooclaim OS — remembers the conversation,
+              keeps the data fresh.
             </p>
-            <div className="flex flex-col items-center gap-[7px]">
-              <div className="flex flex-col items-center gap-1">
-                <p className="typo-body-sm text-white">Michael Tong</p>
-                <p className="typo-body-xs text-white">CTO, RevisionDojo</p>
-              </div>
-              <Image
-                src="/images/micheal.png"
-                alt="Michael Tong"
-                width={32}
-                height={32}
-                className="size-8 rounded-full object-cover"
-              />
-            </div>
-          </div>
-          <div className="flex w-full flex-col items-center gap-3">
-            <p className="typo-body text-white">Trusted by 100k+ Developers</p>
-            <div className="flex items-center justify-center gap-8 text-white">
-              <div className="h-6 shrink-0">
-                <Image
-                  src="/images/logos/aws.svg"
-                  alt="AWS"
-                  width={41}
-                  height={24}
-                  className="size-full object-contain"
-                />
-              </div>
-              <div className="h-5 shrink-0">
-                <Image
-                  src="/images/logos/nvidia.svg"
-                  alt="NVIDIA"
-                  width={109}
-                  height={21}
-                  className="size-full object-contain"
-                />
-              </div>
-              <div className="h-[21px] shrink-0">
-                <Image
-                  src="/images/vercel.png"
-                  alt="Vercel"
-                  width={66}
-                  height={21}
-                  className="size-full object-contain"
-                />
-              </div>
-            </div>
           </div>
         </div>
       </div>

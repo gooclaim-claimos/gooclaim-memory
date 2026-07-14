@@ -143,12 +143,14 @@ initialize_state(DEFAULT_CONFIG)
 
 
 app = FastAPI(
-    title="Mem0 REST APIs",
+    title="Gooclaim Memory API",
     description=(
-        "A REST API for managing and searching memories for your AI Agents and Apps.\n\n"
+        "Agent memory for Gooclaim OS — store and semantically search what your "
+        "agents remember, while live data stays fresh from the source of truth.\n\n"
         "## Authentication\n"
-        "Supports Bearer JWT tokens, per-user API keys via `X-API-Key` header, "
-        "or the legacy `ADMIN_API_KEY` environment variable. Set `AUTH_DISABLED=true` for local development only."
+        "Supports Bearer JWT tokens (for signed-in dashboard users), or API keys via "
+        "the `X-API-Key` header (for services) — including the admin key. "
+        "Set `AUTH_DISABLED=true` for local development only."
     ),
     version="1.0.0",
     redirect_slashes=False,
