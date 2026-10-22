@@ -1,269 +1,233 @@
-<p align="center">
-  <a href="https://github.com/mem0ai/mem0">
-    <img src="docs/images/banner-sm.png" width="800px" alt="Mem0 - The Memory Layer for Personalized AI">
-  </a>
-</p>
-<p align="center" style="display: flex; justify-content: center; gap: 20px; align-items: center;">
-  <a href="https://trendshift.io/repositories/11194" target="blank">
-    <img src="https://trendshift.io/api/badge/repositories/11194" alt="mem0ai%2Fmem0 | Trendshift" width="250" height="55"/>
-  </a>
-</p>
+# Gooclaim Memory
 
-<p align="center">
-  <a href="https://mem0.ai">Learn more</a>
-  ·
-  <a href="https://mem0.dev/DiG">Join Discord</a>
-  ·
-  <a href="https://mem0.dev/demo">Demo</a>
-</p>
+Gooclaim's fork of the open-source [mem0](https://github.com/mem0ai/mem0) project, run as
+**Gooclaim Memory**: a self-hosted semantic memory store (REST API + admin dashboard +
+Postgres/pgvector) that Gooclaim OS uses to remember approved field mappings across tenants.
 
-<p align="center">
-  <a href="https://mem0.dev/DiG">
-    <img src="https://img.shields.io/badge/Discord-%235865F2.svg?&logo=discord&logoColor=white" alt="Mem0 Discord">
-  </a>
-  <a href="https://pepy.tech/project/mem0ai">
-    <img src="https://img.shields.io/pypi/dm/mem0ai" alt="Mem0 PyPI - Downloads">
-  </a>
-  <a href="https://github.com/mem0ai/mem0">
-    <img src="https://img.shields.io/github/commit-activity/m/mem0ai/mem0?style=flat-square" alt="GitHub commit activity">
-  </a>
-  <a href="https://pypi.org/project/mem0ai" target="blank">
-    <img src="https://img.shields.io/pypi/v/mem0ai?color=%2334D058&label=pypi%20package" alt="Package version">
-  </a>
-  <a href="https://www.npmjs.com/package/mem0ai" target="blank">
-    <img src="https://img.shields.io/npm/v/mem0ai" alt="Npm package">
-  </a>
-  <a href="https://www.ycombinator.com/companies/mem0">
-    <img src="https://img.shields.io/badge/Y%20Combinator-S24-orange?style=flat-square" alt="Y Combinator S24">
-  </a>
-</p>
+## Table of Contents
 
-<p align="center">
-  <a href="https://mem0.ai/research"><strong>📄 Benchmarking Mem0's token-efficient memory algorithm →</strong></a>
-</p>
+- [What This Service Does](#what-this-service-does)
+- [How This Fork Differs From Upstream](#how-this-fork-differs-from-upstream)
+- [Architecture & Position](#architecture--position)
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+- [Configuration](#configuration)
+- [Database / State](#database--state)
+- [Observability](#observability)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Versioning & Branches](#versioning--branches)
+- [Upstream](#upstream)
 
-## New Memory Algorithm (April 2026)
+Detailed docs: [`docs/gooclaim/`](docs/gooclaim/README.md). The `docs/` folder outside
+`docs/gooclaim/` is upstream mem0's Mintlify site and is not edited in this fork.
 
-| Benchmark | Old | New  | Tokens  | Latency p50  |
-| --- | --- | --- | --- | --- |
-| **LoCoMo** | 71.4 | **92.5** | 7.0K  | 0.88s  |
-| **LongMemEval** | 67.8 | **94.4** | 6.8K  | 1.09s  |
-| **BEAM (1M)** | — | **64.1** | 6.7K  | 1.00s  |
-| **BEAM (10M)** | — | **48.6** | 6.9K  | 1.05s  |
+## What This Service Does
 
-All benchmarks run on the same production-representative model stack. Single-pass retrieval (one call, no agentic loops) at a top_200 retrieval budget. Scores reflect Mem0's managed platform, which includes proprietary optimizations not available in the open-source SDK; open-source users should expect directionally similar gains but not identical numbers.
+Gooclaim runs only the **`server/`** stack from this repository: the mem0 FastAPI REST
+server, its Next.js dashboard, and a pgvector Postgres.
 
-**What changed:**
-- **Single-pass ADD-only extraction** -- one LLM call, no UPDATE/DELETE. Memories accumulate; nothing is overwritten.
-- **Agent-generated facts are first-class** -- when an agent confirms an action, that information is now stored with equal weight.
-- **Entity linking** -- entities are extracted, embedded, and linked across memories for retrieval boosting.
-- **Multi-signal retrieval** -- semantic, BM25 keyword, and entity matching scored in parallel and fused.
-- **Temporal Reasoning** -- time-aware retrieval that ranks the right dated instance for queries about current state, past events, and upcoming plans.
+Its one consumer today is **Precedent**, the mapping memory:
 
-See the [migration guide](https://docs.mem0.ai/migration/oss-v2-to-v3) for upgrade instructions. The [evaluation framework](https://github.com/mem0ai/memory-benchmarks) is open-sourced so anyone can reproduce the numbers.
+- When a person activates a tenant's CMS field mapping, connector-hub writes one memory per
+  column decision ("tenant column `X` maps to canonical field `Y`") and per code value.
+- When an agent drafts a new mapping, the mapping MCP recalls what other tenants did with a
+  column of the same name.
 
-## Research Highlights
-- **92.5 on LoCoMo** -- +21 points over the previous algorithm
-- **94.4 on LongMemEval** -- +27 points, with 98.2 on assistant memory recall
-- **64.1 on BEAM (1M)** -- production-scale memory evaluation at 1M tokens
-- [Read the full paper](https://mem0.ai/research)
+Both go through `gooclaim-memory-mcp` (in `gooclaim-mcp-server`), which is the only
+Gooclaim service that calls this API directly.
 
-# Introduction
+**What it does NOT do:**
 
-[Mem0](https://mem0.ai) ("mem-zero") enhances AI assistants and agents with an intelligent memory layer, enabling personalized AI interactions. It remembers user preferences, adapts to individual needs, and continuously learns over time—ideal for customer support chatbots, AI assistants, and autonomous systems.
+- It is **not** conversation memory and does not store member profiles. No channel,
+  engine or Orion code calls it. Member profiles live in the member registry, which
+  deliberately does not use mem0.
+- It does **not** run `openmemory/` (a different mem0 product with a different API).
+- It does **not** use the Python SDK, the TypeScript SDK, the CLIs, or anything under
+  `integrations/`, `skills/`, `examples/` or `evaluation/`.
+- It holds no member data by contract: Precedent stores column names and a tenant's own
+  code values, never row values, and refers to a tenant only by a one-way reference.
 
-### Key Features & Use Cases
+## How This Fork Differs From Upstream
 
-**Core Capabilities:**
-- **Multi-Level Memory**: Seamlessly retains User, Session, and Agent state with adaptive personalization
-- **Developer-Friendly**: Intuitive API, cross-platform SDKs, and a fully managed service option
+Base: upstream `main` at `42cf18c` (2026-07-13). Gooclaim's changes are three commits:
 
-**Applications:**
-- **AI Assistants**: Consistent, context-rich conversations
-- **Customer Support**: Recall past tickets and user history for tailored help
-- **Healthcare**: Track patient preferences and history for personalized care
-- **Productivity & Gaming**: Adaptive workflows and environments based on user behavior
+| Change | Files |
+|---|---|
+| API image installs `libpq5` and `psycopg[binary]` (fixes "no pq wrapper available") and drops uvicorn `--reload` | `server/Dockerfile` |
+| OpenAPI title and description rebranded to "Gooclaim Memory API" | `server/main.py` |
+| Dashboard rebranded (logos, favicons, login page, page titles); the "Cloud features (Pro)" nav removed | `server/dashboard/**` |
+| `litellm` optional extra capped `<1.107.0` (1.107.0 was a compromised release) | `pyproject.toml` |
+| Fork notes | `GOOCLAIM-FORK.md` (partly stale, see [docs/gooclaim/09-development.md](docs/gooclaim/09-development.md)) |
 
-## 🚀 Quickstart Guide <a name="quickstart"></a>
+Everything else is upstream code, unchanged.
 
-### Sign up as an agent
+## Architecture & Position
 
-AI agents can mint a working Mem0 API key in under five seconds — no email, no dashboard, no OTP. Four commands end-to-end:
+```
+connector-hub ──(on mapping activation)──▶ gooclaim-memory-mcp ──X-API-Key──▶ Gooclaim Memory API ──▶ LiteLLM gateway
+mapping MCP  ──(recall precedent)────────▶   /v1/memory/*                     /memories, /search       (embeddings, LLM)
+                                                                                     │
+                                                                    Postgres (pgvector) + SQLite history
+                                                                                     ▲
+                                                               Dashboard (Next.js) ──┘ (admin use)
+```
+
+| Component | Source | Container port |
+|---|---|---|
+| API (FastAPI + uvicorn) | `server/main.py` | 8000 |
+| Dashboard (Next.js) | `server/dashboard/` | 3000 |
+| Postgres 17 + pgvector | image `pgvector/pgvector:pg17` | 5432 |
+
+The API builds one `mem0.Memory` from `DEFAULT_CONFIG` (`server/main.py:119-140`):
+vector store `pgvector`, LLM provider `openai`, embedder provider `openai`. The OpenAI
+provider is only a wire format: Gooclaim points it at the **LiteLLM gateway** by setting
+`OPENAI_BASE_URL` and giving `OPENAI_API_KEY` a gateway virtual key (see
+[Configuration](#configuration)).
+
+**Hard rules**
+
+- Every model call goes through the LiteLLM gateway. Never configure a direct provider
+  key, and never switch the provider (via env or `POST /configure`) to `anthropic` or
+  `gemini`, which the image also bundles.
+- Only Precedent's namespace is used today (`user_id` + `agent_id` fixed by the memory
+  MCP's config, never by the caller). A future per-tenant consumer must get its own
+  namespace.
+- Never store a value out of a tenant's file; column names and codes only.
+- Keep fork changes minimal and marked, so upstream merges stay easy.
+
+## Quick Start
+
+Prerequisites: Docker with Compose, and a reachable LiteLLM gateway (or an OpenAI-compatible
+endpoint for local testing).
 
 ```bash
-# 1. Install
-npm install -g @mem0/cli      # or: pip install mem0-cli
-
-# 2. Sign up as an agent (replace `claude-code` with your name)
-mem0 init --agent --agent-caller claude-code
-
-# 3. Add a memory
-mem0 add "I am using mem0"
-
-# 4. Search
-mem0 search "am I using mem0"
+cd server
+cp .env.example .env
+# Set at least: POSTGRES_PASSWORD, JWT_SECRET, ADMIN_API_KEY,
+# OPENAI_API_KEY (gateway key), OPENAI_BASE_URL (gateway /v1 URL),
+# MEM0_DEFAULT_LLM_MODEL (gateway alias), MEM0_TELEMETRY=false
+make up          # builds and starts API (host 8888), dashboard (host 3000), Postgres (host 8432)
+make health
 ```
 
-The human owner can claim the account later with `mem0 init --email <their-email>` — same key, memories preserved. Full guide: [Sign up as an agent](https://docs.mem0.ai/platform/agent-signup).
+Open the dashboard on port 3000 to create the first admin, or use `make bootstrap` to
+create the admin and first API key from the terminal. API docs are at `/docs` on the API.
 
-| | Library | Self-Hosted Server | Cloud Platform |
-|---|---------|-------------------|----------------|
-| **Best for** | Testing, prototyping | Teams running on their own infrastructure | Zero-ops production use |
-| **Setup** | `pip install mem0ai` | `docker compose up` | Sign up at [app.mem0.ai](https://app.mem0.ai?utm_source=oss&utm_medium=readme) |
-| **Dashboard** | -- | [Yes](https://docs.mem0.ai/open-source/setup) | Yes |
-| **Auth & API Keys** | -- | Yes | Yes |
-| **Advanced Features** | -- | Teasers | All included |
+## API Reference
 
-Just testing? Use the library. Building for a team? Self-hosted. Want zero ops? Cloud.
+All routes come from `server/main.py` and `server/routers/`. Auth is a Bearer JWT
+(dashboard users) or `X-API-Key` (an API key from the dashboard, or `ADMIN_API_KEY`).
 
-### Library (pip / npm)
+Routes Gooclaim's services call (through the memory MCP):
 
-```bash
-pip install mem0ai
+| Method | Path | Used for |
+|---|---|---|
+| POST | `/memories` | Add a memory (`messages`, `user_id`, `agent_id`, `metadata`, `infer`) |
+| POST | `/search` | Similarity search within a namespace |
+| GET | `/memories?user_id=&agent_id=&top_k=` | List a namespace; also the memory MCP's readiness probe |
+| DELETE | `/memories/{memory_id}` | Delete one memory |
+
+Other upstream routes exist (`/configure`, `/generate-instructions`, `/memories/{id}`
+GET/PUT, `/memories/{id}/history`, bulk `DELETE /memories`, `/reset`, `/auth/*`,
+`/api-keys`, `/entities`, `/requests`). See [docs/gooclaim/03-apis.md](docs/gooclaim/03-apis.md).
+
+## Configuration
+
+### Repository structure (the parts Gooclaim uses)
+
+```
+server/
+  main.py            FastAPI app, DEFAULT_CONFIG, memory routes
+  auth.py            JWT / API-key / admin-key auth
+  db.py, models.py   SQLAlchemy app database (users, keys, logs, settings)
+  server_state.py    builds mem0.Memory; merges config overrides stored in Postgres
+  routers/           /auth, /api-keys, /entities, /requests
+  alembic/           app-database migrations 001-006
+  Dockerfile         API image (fork-modified)
+  dev.Dockerfile     image used by docker-compose.yaml
+  docker-compose.yaml  API + Postgres + dashboard
+  dashboard/         Next.js admin UI (fork-rebranded)
+pyproject.toml       mem0ai library (fork: litellm cap)
 ```
 
-For enhanced hybrid search with BM25 keyword matching and entity extraction, install with NLP support:
+### Environment variables (API)
 
-```bash
-pip install mem0ai[nlp]
-python -m spacy download en_core_web_sm
-```
+Read with `os.environ.get` in `server/main.py`, `server/auth.py`, `server/db.py`,
+`server/telemetry.py`. There is no settings class.
 
-Install sdk via npm:
+| Variable | Default | Required | Notes |
+|---|---|---|---|
+| `OPENAI_API_KEY` | none | yes | LiteLLM gateway virtual key for this service |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` (library default) | yes for Gooclaim | Gateway `/v1` URL. Read by mem0's OpenAI LLM and embedder |
+| `MEM0_DEFAULT_LLM_MODEL` | `gpt-4.1-nano-2025-04-14` | set it | Use a gateway alias |
+| `MEM0_DEFAULT_EMBEDDER_MODEL` | `text-embedding-3-small` | no | Must exist on the gateway; 1536 dimensions matches the pgvector default |
+| `JWT_SECRET` | empty | yes | Startup fails without it unless `AUTH_DISABLED` |
+| `ADMIN_API_KEY` | empty | yes for Gooclaim | The key the memory MCP sends as `X-API-Key` |
+| `AUTH_DISABLED` | false | no | Local development only |
+| `POSTGRES_HOST` / `POSTGRES_PORT` | `postgres` / `5432` | no | |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` | `postgres` / `postgres` | password yes | Compose refuses to start without `POSTGRES_PASSWORD` |
+| `POSTGRES_DB` | `postgres` | no | Database holding the vector table |
+| `POSTGRES_COLLECTION_NAME` | `memories` | no | Vector table name |
+| `APP_DB_NAME` | `mem0_app` | no | Database for users, keys, logs, settings |
+| `HISTORY_DB_PATH` | `/app/history/history.db` | no | SQLite memory-change history |
+| `DASHBOARD_URL` | `http://localhost:3000` | no | Only CORS origin allowed |
+| `MEM0_TELEMETRY` | true | no | Set `false`: otherwise events go to mem0's PostHog |
+| `MEM0_TELEMETRY_STATE_PATH` | `/app/history/telemetry.json` | no | |
+| `REQUEST_LOG_RETENTION_DAYS` | 30 | no | Used by `make prune-logs` |
 
-```bash
-npm install mem0ai
-```
+Dashboard: `NEXT_PUBLIC_API_URL`, `API_INTERNAL_URL`, `NEXT_PUBLIC_INSTANCE_NAME`.
+Full detail: [docs/gooclaim/05-configuration.md](docs/gooclaim/05-configuration.md).
 
-### Self-Hosted Server
+## Database / State
 
-> **Note:** Self-hosted auth is on by default. Upgrading from a pre-auth build? Set `ADMIN_API_KEY`, register an admin through the wizard, or `AUTH_DISABLED=true` for local dev only. See [upgrade notes](https://docs.mem0.ai/open-source/setup#upgrade-notes).
+One Postgres instance, two databases:
 
-```bash
-# Recommended: one command — start the stack, create an admin, issue the first API key.
-cd server && make bootstrap
+- `POSTGRES_DB` (default `postgres`): the pgvector table `POSTGRES_COLLECTION_NAME`
+  (default `memories`), created by the mem0 library on first start.
+- `APP_DB_NAME` (default `mem0_app`, created by `server/init-db.sh`): `users`, `api_keys`,
+  `request_logs`, `refresh_token_jtis`, `settings` (Alembic migrations `001`-`006`).
 
-# Manual: start the stack and finish setup via the browser wizard.
-cd server && docker compose up -d    # http://localhost:3000
-```
+Plus a SQLite history file at `HISTORY_DB_PATH`. Note that `POST /configure` saves
+overrides in the `settings` table and they are re-applied over the env defaults at every
+start (`server/server_state.py`).
 
-See the [self-hosted docs](https://docs.mem0.ai/open-source/overview) for configuration.
+## Observability
 
-### Cloud Platform
+Plain Python logging with a request id per request (`X-Request-ID` response header). Each
+request is also written to the `request_logs` table and shown in the dashboard. There is
+no OpenTelemetry or audit-bus emission in this server; audit events for Precedent tool
+calls are emitted by `gooclaim-memory-mcp`.
 
-1. Sign up on [Mem0 Platform](https://app.mem0.ai?utm_source=oss&utm_medium=readme)
-2. Embed the memory layer via SDK or API keys
-3. Using hosted Qdrant vectors? See the [Platform migration guide](https://docs.mem0.ai/migration/oss-to-platform) to import them into Mem0 Platform.
+## Testing
 
-### CLI
+Upstream tests run with Hatch from the repo root: `make test` (`pytest tests/`). The
+server's own tests are `tests/test_server_auth.py`, `tests/test_server_params.py` and
+`tests/test_api_keys_router.py`. See [docs/gooclaim/08-testing.md](docs/gooclaim/08-testing.md).
 
-Manage memories from your terminal:
+## Deployment
 
-```bash
-npm install -g @mem0/cli   # or: pip install mem0-cli
+Dev only, on AWS: the `server/` stack runs as Docker containers (API, dashboard, Postgres)
+on a dev EC2 instance, started with Docker Compose. It is not deployed through the
+platform's per-service deploy script. Nothing runs on Kubernetes or Azure. See
+[docs/gooclaim/06-deployment.md](docs/gooclaim/06-deployment.md).
 
-mem0 init
-mem0 add "Prefers dark mode and vim keybindings" --user-id alice
-mem0 search "What does Alice prefer?" --user-id alice
-```
+## Versioning & Branches
 
-See the [CLI documentation](https://docs.mem0.ai/platform/cli) for the full command reference.
+| Branch | Holds |
+|---|---|
+| `main` | Upstream mirror (currently at the fork base `42cf18c`) |
+| `release/dev` | Default branch: upstream + Gooclaim changes; what dev runs |
+| `release/uat`, `release/prd` | Promotion branches |
+| `develop` | Older integration branch |
 
-### Agent Skills
+Flow: `feature|fix|chore|docs/<x>` → `release/dev` → `release/uat` → `release/prd`.
+No server CI on the Gooclaim side: run the checks locally before pushing.
 
-Teach your AI coding assistant (Claude Code, Codex, Cursor, Windsurf, OpenCode, OpenClaw, and any tool that supports the skills standard) how to build with Mem0. Two categories:
+## Upstream
 
-**Reference skills — always on** (SDK knowledge loaded into the assistant's context):
-
-```bash
-npx skills add https://github.com/mem0ai/mem0 --skill mem0
-npx skills add https://github.com/mem0ai/mem0 --skill mem0-cli
-npx skills add https://github.com/mem0ai/mem0 --skill mem0-vercel-ai-sdk
-```
-
-**Pipeline skills — run on demand** (execute an end-to-end workflow in an existing repo):
-
-```bash
-npx skills add https://github.com/mem0ai/mem0 --skill mem0-integrate
-npx skills add https://github.com/mem0ai/mem0 --skill mem0-test-integration
-npx skills add https://github.com/mem0ai/mem0 --skill mem0-oss-to-platform
-```
-
-Use `/mem0-integrate` to wire Mem0 into an existing repo via a test-first pipeline, then `/mem0-test-integration` to verify. Use `/mem0-oss-to-platform` to migrate an existing project from Mem0 OSS to the hosted Platform SDK. See the [skills catalog](./skills/) or [Vibecoding with Mem0](https://docs.mem0.ai/vibecoding) for the full picture.
-
-### Basic Usage
-
-Mem0 requires an LLM to function, with `gpt-5-mini` from OpenAI as the default. However, it supports a variety of LLMs; for details, refer to our [Supported LLMs documentation](https://docs.mem0.ai/components/llms/overview).
-
-Mem0 uses `text-embedding-3-small` from OpenAI as the default embedding model. For best results with hybrid search (semantic + keyword + entity boosting), we recommend using at least [Qwen 600M](https://huggingface.co/Alibaba-NLP/gte-Qwen2-1.5B-instruct) or a comparable embedding model. See [Supported Embeddings](https://docs.mem0.ai/components/embedders/overview) for configuration details.
-
-First step is to instantiate the memory:
-
-```python
-from openai import OpenAI
-from mem0 import Memory
-
-openai_client = OpenAI()
-memory = Memory()
-
-def chat_with_memories(message: str, user_id: str = "default_user") -> str:
-    # Retrieve relevant memories
-    relevant_memories = memory.search(query=message, filters={"user_id": user_id}, top_k=3)
-    memories_str = "\n".join(f"- {entry['memory']}" for entry in relevant_memories["results"])
-
-    # Generate Assistant response
-    system_prompt = f"You are a helpful AI. Answer the question based on query and memories.\nUser Memories:\n{memories_str}"
-    messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": message}]
-    response = openai_client.chat.completions.create(model="gpt-5-mini", messages=messages)
-    assistant_response = response.choices[0].message.content
-
-    # Create new memories from the conversation
-    messages.append({"role": "assistant", "content": assistant_response})
-    memory.add(messages, user_id=user_id)
-
-    return assistant_response
-
-def main():
-    print("Chat with AI (type 'exit' to quit)")
-    while True:
-        user_input = input("You: ").strip()
-        if user_input.lower() == 'exit':
-            print("Goodbye!")
-            break
-        print(f"AI: {chat_with_memories(user_input)}")
-
-if __name__ == "__main__":
-    main()
-```
-
-For detailed integration steps, see the [Quickstart](https://docs.mem0.ai/quickstart) and [API Reference](https://docs.mem0.ai/api-reference).
-
-## 🔗 Integrations & Demos
-
-- **ChatGPT with Memory**: Personalized chat powered by Mem0 ([Live Demo](https://mem0.dev/demo))
-- **Browser Extension**: Store memories across ChatGPT, Perplexity, and Claude ([Chrome Extension](https://chromewebstore.google.com/detail/onihkkbipkfeijkadecaafbgagkhglop?utm_source=item-share-cb))
-- **Langgraph Support**: Build a customer bot with Langgraph + Mem0 ([Guide](https://docs.mem0.ai/integrations/langgraph))
-- **CrewAI Integration**: Tailor CrewAI outputs with Mem0 ([Example](https://docs.mem0.ai/integrations/crewai))
-
-## 📚 Documentation & Support
-
-- Full docs: https://docs.mem0.ai
-- Community: [Discord](https://mem0.dev/DiG) · [X (formerly Twitter)](https://x.com/mem0ai)
-- Contact: founders@mem0.ai
-
-## Citation
-
-We now have a paper you can cite:
-
-```bibtex
-@article{mem0,
-  title={Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory},
-  author={Chhikara, Prateek and Khant, Dev and Aryan, Saket and Singh, Taranjeet and Yadav, Deshraj},
-  journal={arXiv preprint arXiv:2504.19413},
-  year={2025}
-}
-```
-
-## ⚖️ License
-
-Apache 2.0 — see the [LICENSE](https://github.com/mem0ai/mem0/blob/main/LICENSE) file for details.
+- Source: <https://github.com/mem0ai/mem0>
+- Docs: <https://docs.mem0.ai> (self-hosted server: "Open Source → REST API")
+- Upstream internals for coding agents: [`AGENTS.md`](AGENTS.md), [`LLM.md`](LLM.md),
+  [`server/README.md`](server/README.md)
+- License: Apache-2.0 ([`LICENSE`](LICENSE))
