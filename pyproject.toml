@@ -56,7 +56,14 @@ vector-stores = [
 llms = [
     "groq>=0.3.0",
     "together>=0.2.10",
-    "litellm>=1.83.7",
+    # GOOCLAIM DEVIATION from upstream mem0: upper bound added 2026-10-22.
+    # litellm 1.107.0 shipped a credential stealer and a backdoor (PyPI +
+    # Docker, pulled 2026-10-20/21). The advisory's safe version is 1.106.2,
+    # and the maintainers could not rule out further access, so nothing at or
+    # above 1.107.0 is allowed here. This constraint is the only guard: the
+    # build backend is hatchling, and the poetry.lock in this tree is an
+    # upstream leftover that nothing here resolves from.
+    "litellm>=1.83.7,<1.107.0",
     "openai>=1.90.0",
     "ollama>=0.3.0",
     "vertexai>=0.1.0",
