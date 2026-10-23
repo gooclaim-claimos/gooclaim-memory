@@ -32,13 +32,12 @@ not run Alembic migrations; the compose command does (see below).
 The compose command for `mem0` is:
 
 ```
-rm -rf /app/packages && pip install -q --force-reinstall --no-deps mem0ai \
-  && alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-So under compose the `mem0` library comes from PyPI at container start (the
-`server/requirements.txt` floor is `mem0ai>=0.1.48`), not from this repository's `mem0/`
-directory, and the server code is bind-mounted from `server/`.
+The `mem0` library is this repository's `mem0/`, installed into site-packages by
+`server/dev.Dockerfile` when the image is built (outside `/app`, which compose bind-mounts
+from `server/`). Nothing is installed at container start, and PyPI's `mem0ai` is never used.
 
 ## How model calls reach the gateway
 

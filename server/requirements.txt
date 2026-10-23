@@ -1,7 +1,10 @@
 fastapi==0.115.8
 uvicorn==0.34.0
 pydantic[email]==2.10.4
-mem0ai>=0.1.48
+# GOOCLAIM DEVIATION: no `mem0ai` here. The library is THIS repository's `mem0/`,
+# installed by the Dockerfiles from the checked-out commit — never from PyPI.
+# Upstream's floor (`mem0ai>=0.1.48`) let pip pull whatever PyPI served, and the
+# compose command re-installed it, unpinned, on every start.
 python-dotenv==1.2.2
 psycopg>=3.2.8
 psycopg-pool>=3.2.6,<4.0.0

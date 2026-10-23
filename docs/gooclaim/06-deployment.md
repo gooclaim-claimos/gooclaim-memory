@@ -44,7 +44,8 @@ running container for provider keys.
 
 ## Notes
 
-- The compose file reinstalls `mem0ai` from PyPI with no version pin every time the API
-  container starts, so a restart can change the library version.
-- `server/Dockerfile` (the fork-modified image) does not run migrations; if it is used
-  instead of compose, run `alembic upgrade head` separately.
+- The image runs the `mem0/` of the commit it was built from; a restart changes nothing. To
+  change the library, change this repository and rebuild.
+- `server/Dockerfile` (the fork-modified image) builds from the repository root
+  (`docker build -f server/Dockerfile .`) and does not run migrations; if it is used instead
+  of compose, run `alembic upgrade head` separately.

@@ -19,13 +19,17 @@ upstream's Mintlify site — do not edit it.
 
 ## Fork changes (keep them small and marked)
 
-`git log --oneline upstream/main..HEAD` — three commits on top of upstream `42cf18c`:
+`git log --oneline upstream/main..HEAD` — the commits on top of upstream `42cf18c`:
 
 - `server/Dockerfile`: `libpq5` + `psycopg[binary]`, no `--reload`.
 - `server/main.py`: OpenAPI title/description "Gooclaim Memory API".
 - `server/dashboard/**`: Gooclaim branding; "Cloud features (Pro)" nav removed.
 - `pyproject.toml`: `litellm>=1.83.7,<1.107.0` — a marked GOOCLAIM DEVIATION; a merge
   from upstream must not drop it.
+- `server/requirements.txt`, both Dockerfiles, `docker-compose.yaml`, root `.dockerignore`:
+  the server runs THIS repo's `mem0/` (installed at image build), never PyPI's `mem0ai`;
+  no install at container start; `.env` never enters an image. Guarded by
+  `tests/test_gooclaim_mem0_comes_from_this_repo.py` — an upstream merge must keep it green.
 - `GOOCLAIM-FORK.md`: fork notes (its Deploy section is stale: Azure/ACR/AKV/OpenAI-direct).
 
 ## Layout that matters

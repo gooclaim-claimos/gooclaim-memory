@@ -1,0 +1,8 @@
+# GOOCLAIM DEVIATION: the server images build from the repository root.
+# Never bake an instance's secrets, or the repo's history, into an image.
+**/.env
+**/.env.*
+!**/.env.example
+.git
+**/node_modules
+server/history

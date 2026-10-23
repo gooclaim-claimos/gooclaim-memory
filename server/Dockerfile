@@ -1,3 +1,4 @@
+# Build from the repository root: docker build -f server/Dockerfile .
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -7,11 +8,16 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY server/requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt "psycopg[binary]>=3.2.8"
 
-COPY . .
+# GOOCLAIM DEVIATION: mem0 from THIS checkout, never PyPI (see requirements.txt).
+COPY pyproject.toml README.md /opt/mem0-src/
+COPY mem0 /opt/mem0-src/mem0
+RUN pip install --no-cache-dir /opt/mem0-src
+
+COPY server/ .
 
 EXPOSE 8000
 

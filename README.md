@@ -50,7 +50,7 @@ Gooclaim service that calls this API directly.
 
 ## How This Fork Differs From Upstream
 
-Base: upstream `main` at `42cf18c` (2026-07-13). Gooclaim's changes are three commits:
+Base: upstream `main` at `42cf18c` (2026-07-13). Gooclaim's changes:
 
 | Change | Files |
 |---|---|
@@ -58,6 +58,7 @@ Base: upstream `main` at `42cf18c` (2026-07-13). Gooclaim's changes are three co
 | OpenAPI title and description rebranded to "Gooclaim Memory API" | `server/main.py` |
 | Dashboard rebranded (logos, favicons, login page, page titles); the "Cloud features (Pro)" nav removed | `server/dashboard/**` |
 | `litellm` optional extra capped `<1.107.0` (1.107.0 was a compromised release) | `pyproject.toml` |
+| The server runs this repository's `mem0/`, never PyPI's `mem0ai` (no reinstall at start); images build from the repo root and keep `.env` files out | `server/requirements.txt`, `server/Dockerfile`, `server/dev.Dockerfile`, `server/docker-compose.yaml`, `.dockerignore`, `tests/test_gooclaim_mem0_comes_from_this_repo.py` |
 | Fork notes | `GOOCLAIM-FORK.md` (partly stale, see [docs/gooclaim/09-development.md](docs/gooclaim/09-development.md)) |
 
 Everything else is upstream code, unchanged.

@@ -47,5 +47,8 @@ the admin's email domain and the setup wizard's use-case text. Gooclaim environm
 
 - `pyproject.toml` caps `litellm` below 1.107.0 (a compromised release). The server image
   does not install the `llms` extra, so this guards development installs of this tree.
-- Under `server/docker-compose.yaml` the API reinstalls `mem0ai` from PyPI, unpinned, on
-  every container start.
+- The server runs this repository's own `mem0/`, installed into the image from the checked-out
+  commit; `server/requirements.txt` does not name `mem0ai` and the compose start command installs
+  nothing (`tests/test_gooclaim_mem0_comes_from_this_repo.py`). Other dependencies are still
+  version ranges, resolved at build time.
+- A root `.dockerignore` keeps `.env` files, `.git` and `node_modules` out of the images.

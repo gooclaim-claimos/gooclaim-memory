@@ -2,21 +2,20 @@ FROM python:3.12
 
 WORKDIR /app
 
-# Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
-ENV PATH="/root/.local/bin:$PATH"
-
 # Copy requirements first for better caching
 COPY server/requirements.txt .
 RUN pip install -r requirements.txt
 
-# Install mem0 in editable mode using Poetry
-WORKDIR /app/packages
-COPY pyproject.toml .
-COPY poetry.lock .
-COPY README.md .
+# GOOCLAIM DEVIATION: mem0 is installed from THIS checkout, into site-packages,
+# outside /app — compose bind-mounts server/ over /app, which hid an install
+# under /app/packages and is why the compose command used to re-install mem0ai
+# from PyPI (unpinned) on every start. The image now runs exactly the commit it
+# was built from. Upstream also installed Poetry by piping a script from the
+# internet; nothing here uses it.
+WORKDIR /opt/mem0-src
+COPY pyproject.toml README.md ./
 COPY mem0 ./mem0
-RUN pip install -e .[graph]
+RUN pip install --no-cache-dir ".[graph]"
 
 # Return to app directory and copy server code
 WORKDIR /app
